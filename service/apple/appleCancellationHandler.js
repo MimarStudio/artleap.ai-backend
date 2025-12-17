@@ -308,6 +308,7 @@ class AppleCancellationHandler {
   async compareAndUpdateLocalRecords(paymentRecord, appStoreStatus) {
     try {
       const userId = paymentRecord.userId;
+      const freeSnapshot = buildPlanSnapshot(freePlan);
 
       await PaymentRecord.updateOne(
         { _id: paymentRecord._id },
@@ -353,7 +354,8 @@ class AppleCancellationHandler {
                 cancellationReason: appStoreStatus.cancellationType,
                 status: "cancelled",
                 endDate: new Date(),
-                lastUpdated: new Date()
+                lastUpdated: new Date(),
+                planSnapshot: freeSnapshot,
               }
             }
           );
@@ -375,7 +377,8 @@ class AppleCancellationHandler {
                 cancellationReason: appStoreStatus.cancellationType,
                 status: "cancelled",
                 endDate: appStoreStatus.expiryTime,
-                lastUpdated: new Date()
+                lastUpdated: new Date(),
+               planSnapshot: freeSnapshot,
               }
             }
           );
@@ -617,27 +620,11 @@ class AppleCancellationHandler {
             autoRenew: false,
             cancelledAt: now,
             endDate: now,
-            lastUpdated: now
+            lastUpdated: now,
+            planSnapshot: freeSnapshot,
           }
         }
       );
-
-      if (!isAlreadyOnFreePlan) {
-        const newFreeSub = new UserSubscription({
-          userId,
-          planId: freePlan._id,
-          startDate: now,
-          endDate: now,
-          isTrial: false,
-          isActive: true,
-          paymentMethod: "system",
-          autoRenew: false,
-          status: "active",
-          planSnapshot: freeSnapshot,
-          lastUpdated: now
-        });
-        await newFreeSub.save();
-      }
 
     } catch (error) {
       this.logError(`Failed to downgrade user ${userId}`, error);
