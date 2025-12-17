@@ -624,8 +624,7 @@ class GoogleCancellationHandler {
         : null;
       const now = new Date();
 
-      const isSameDay =
-        lastDowngrade &&
+      const isSameDay = lastDowngrade &&
         lastDowngrade.getUTCFullYear() === now.getUTCFullYear() &&
         lastDowngrade.getUTCMonth() === now.getUTCMonth() &&
         lastDowngrade.getUTCDate() === now.getUTCDate();
@@ -637,7 +636,7 @@ class GoogleCancellationHandler {
       const freeSnapshot = buildPlanSnapshot(freePlan);
 
       const updateData = {
-        isSubscribed: false,
+        isSubscribed: true,
         subscriptionStatus: "active",
         cancellationReason: cancellationType,
         planName: freePlan.name || "Free",
@@ -669,23 +668,6 @@ class GoogleCancellationHandler {
           },
         }
       );
-
-      if (!isAlreadyOnFreePlan) {
-        const newFreeSub = new UserSubscription({
-          userId,
-          planId: freePlan._id,
-          startDate: now,
-          endDate: now,
-          isTrial: false,
-          isActive: true,
-          paymentMethod: "system",
-          autoRenew: false,
-          status: "active",
-          planSnapshot: freeSnapshot,
-          lastUpdated: now,
-        });
-        await newFreeSub.save();
-      }
     } catch (error) {
       this.logError(`Failed to downgrade user ${userId}`, error);
       throw error;
