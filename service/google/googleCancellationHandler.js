@@ -665,9 +665,11 @@ class GoogleCancellationHandler {
             cancelledAt: now,
             endDate: now,
             lastUpdated: now,
+            planSnapshot: freeSnapshot,
           },
         }
       );
+
     } catch (error) {
       this.logError(`Failed to downgrade user ${userId}`, error);
       throw error;
