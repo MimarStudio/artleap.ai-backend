@@ -1006,132 +1006,148 @@ class SubscriptionManagement {
   }
 
   async processExpiredSubscriptions() {
-    try {
-      const now = new Date();
+  try {
+    const now = new Date();
 
-      await this.processGracePeriodSubscriptions();
+    await this.processGracePeriodSubscriptions();
 
-      const invalidSubscriptions = await UserSubscription.find({
-        planId: null,
-        isActive: true,
-      });
+    const invalidSubscriptions = await UserSubscription.find({
+      planId: null,
+      isActive: true,
+    });
 
-      for (const sub of invalidSubscriptions) {
-        const freePlan = await this.planManagement.getPlanByType("free");
-        if (freePlan) {
-          sub.planId = freePlan._id;
-          sub.planSnapshot = {
-            name: freePlan.name,
-            type: freePlan.type,
-            price: freePlan.price,
-            totalCredits: freePlan.totalCredits,
-            imageGenerationCredits: freePlan.imageGenerationCredits,
-            promptGenerationCredits: freePlan.promptGenerationCredits,
-            features: freePlan.features,
-            version: freePlan.version,
-          };
-          await sub.save();
-        } else {
-          await this.cancelSubscription(sub.userId, true, true);
-        }
+    for (const sub of invalidSubscriptions) {
+      const freePlan = await this.planManagement.getPlanByType("free");
+      if (freePlan) {
+        sub.planId = freePlan._id;
+        sub.planSnapshot = {
+          name: freePlan.name,
+          type: freePlan.type,
+          price: freePlan.price,
+          totalCredits: freePlan.totalCredits,
+          imageGenerationCredits: freePlan.imageGenerationCredits,
+          promptGenerationCredits: freePlan.promptGenerationCredits,
+          features: freePlan.features,
+          version: freePlan.version,
+        };
+        await sub.save();
+      } else {
+        await this.cancelSubscription(sub.userId, true, true);
       }
+    }
 
-      const expiringSoon = await UserSubscription.find({
-        endDate: { $lte: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) },
-        isActive: true,
-        autoRenew: true,
-        isTrial: false,
-        planId: { $ne: null },
-      }).populate("userId planId");
+    const expiringSoon = await UserSubscription.find({
+      endDate: { $lte: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) },
+      isActive: true,
+      autoRenew: true,
+      isTrial: false,
+      planId: { $ne: null },
+    }).populate("userId planId");
 
-      for (const sub of expiringSoon) {
-        await this.notificationService.sendSubscriptionNotification(
-          sub.userId._id,
-          "renewal_reminder",
-          sub
-        );
-      }
+    for (const sub of expiringSoon) {
+      if (!sub.userId) continue; // Skip if userId is null
+      await this.notificationService.sendSubscriptionNotification(
+        sub.userId._id,
+        "renewal_reminder",
+        sub
+      );
+    }
 
-      const expiredSubs = await UserSubscription.find({
-        endDate: { $lte: now },
-        isActive: true,
-        isTrial: false,
-        autoRenew: true,
-        planId: { $ne: null },
-      }).populate("userId planId");
+    const expiredSubs = await UserSubscription.find({
+      endDate: { $lte: now },
+      isActive: true,
+      isTrial: false,
+      autoRenew: true,
+      planId: { $ne: null },
+    }).populate("userId planId");
 
-      for (const sub of expiredSubs) {
-        try {
-          const paymentSuccess = await this.paymentProcessing.processPayment(
-            sub.userId._id,
-            sub.paymentMethod,
-            sub.planSnapshot?.price || 0
-          );
-
-          if (paymentSuccess) {
-            const plan = sub.planId;
-            sub.startDate = new Date();
-
-            if (plan.type === "basic") {
-              sub.endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-            } else if (plan.type === "standard") {
-              sub.endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-            } else if (plan.type === "premium") {
-              sub.endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-            }
-
-            sub.planSnapshot = {
-              name: plan.name,
-              type: plan.type,
-              price: plan.price,
-              totalCredits: plan.totalCredits,
-              imageGenerationCredits: plan.imageGenerationCredits,
-              promptGenerationCredits: plan.promptGenerationCredits,
-              features: plan.features,
-              version: plan.version,
-            };
-
-            await sub.save();
-
-            await this.updateUserData(
-              sub.userId._id,
-              plan,
-              sub,
-              true,
-              false,
-              true
-            );
-
-            await this.notificationService.sendSubscriptionNotification(
-              sub.userId._id,
-              "renewed",
-              sub
-            );
-          } else {
-            await this.cancelSubscription(sub.userId._id, true, true);
-          }
-        } catch (error) {
-          console.error(
-            `[SubscriptionManagement] Error renewing subscription: ${sub._id}`,
-            error
-          );
-          await this.cancelSubscription(sub.userId._id, true, true);
-        }
-      }
-
-      const expiredNonAutoRenew = await UserSubscription.find({
-        endDate: { $lte: now },
-        isActive: true,
-        $or: [{ isTrial: true }, { autoRenew: false }],
-        planId: { $ne: null },
-      }).populate("userId planId");
-
-      for (const sub of expiredNonAutoRenew) {
-        try {
+    for (const sub of expiredSubs) {
+      try {
+        // Check for null userId
+        if (!sub.userId) {
           sub.isActive = false;
           sub.cancelledAt = new Date();
           await sub.save();
+          continue;
+        }
 
+        const paymentSuccess = await this.paymentProcessing.processPayment(
+          sub.userId._id,
+          sub.paymentMethod,
+          sub.planSnapshot?.price || 0
+        );
+
+        if (paymentSuccess) {
+          const plan = sub.planId;
+          sub.startDate = new Date();
+
+          if (plan.type === "basic") {
+            sub.endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          } else if (plan.type === "standard") {
+            sub.endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          } else if (plan.type === "premium") {
+            sub.endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+          }
+
+          sub.planSnapshot = {
+            name: plan.name,
+            type: plan.type,
+            price: plan.price,
+            totalCredits: plan.totalCredits,
+            imageGenerationCredits: plan.imageGenerationCredits,
+            promptGenerationCredits: plan.promptGenerationCredits,
+            features: plan.features,
+            version: plan.version,
+          };
+
+          await sub.save();
+
+          await this.updateUserData(
+            sub.userId._id,
+            plan,
+            sub,
+            true,
+            false,
+            true
+          );
+
+          await this.notificationService.sendSubscriptionNotification(
+            sub.userId._id,
+            "renewed",
+            sub
+          );
+        } else {
+          await this.cancelSubscription(sub.userId._id, true, true);
+        }
+      } catch (error) {
+        console.error(
+          `[SubscriptionManagement] Error renewing subscription: ${sub._id}`,
+          error
+        );
+        if (sub.userId) {
+          await this.cancelSubscription(sub.userId._id, true, true);
+        } else {
+          sub.isActive = false;
+          sub.cancelledAt = new Date();
+          await sub.save();
+        }
+      }
+    }
+
+    const expiredNonAutoRenew = await UserSubscription.find({
+      endDate: { $lte: now },
+      isActive: true,
+      $or: [{ isTrial: true }, { autoRenew: false }],
+      planId: { $ne: null },
+    }).populate("userId planId");
+
+    for (const sub of expiredNonAutoRenew) {
+      try {
+        sub.isActive = false;
+        sub.cancelledAt = new Date();
+        await sub.save();
+
+        if (sub.userId) {
           const freePlan = await this.planManagement.getPlanByType("free");
           if (freePlan) {
             await this.updateUserData(
@@ -1148,21 +1164,22 @@ class SubscriptionManagement {
               sub
             );
           }
-        } catch (error) {
-          console.error(
-            `[SubscriptionManagement] Error processing expired subscription: ${sub._id}`,
-            error
-          );
         }
+      } catch (error) {
+        console.error(
+          `[SubscriptionManagement] Error processing expired subscription: ${sub._id}`,
+          error
+        );
       }
-    } catch (error) {
-      console.error(
-        "[SubscriptionManagement] processExpiredSubscriptions failed:",
-        error
-      );
-      throw error;
     }
+  } catch (error) {
+    console.error(
+      "[SubscriptionManagement] processExpiredSubscriptions failed:",
+      error
+    );
+    throw error;
   }
+}
 
   async startFreeTrial(userId, paymentMethod) {
     try {

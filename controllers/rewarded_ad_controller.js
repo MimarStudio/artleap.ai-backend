@@ -24,14 +24,12 @@ const addRewardedAdCredits = async (req, res) => {
     const currentDailyCredits = user.dailyCredits || 0;
     const currentTotalCredits = user.totalCredits || 0;
     
-    // Get user's active subscription to update subscription credits too
     const activeSubscription = await UserSubscription.findOne({
       userId: userId,
       isActive: true,
       endDate: { $gt: new Date() }
     });
 
-    // Update user credits
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       {
@@ -43,7 +41,6 @@ const addRewardedAdCredits = async (req, res) => {
       { new: true }
     ).select('dailyCredits totalCredits planName username email');
 
-    // Prepare response data
     const responseData = {
       userId: userId,
       username: updatedUser.username,
@@ -57,7 +54,6 @@ const addRewardedAdCredits = async (req, res) => {
       timestamp: new Date().toISOString()
     };
 
-    // If user has an active subscription, update subscription credits as well
     if (activeSubscription) {
       await UserSubscription.findByIdAndUpdate(
         activeSubscription._id,
@@ -71,7 +67,6 @@ const addRewardedAdCredits = async (req, res) => {
         { new: true }
       );
 
-      // Add subscription update info to response
       responseData.subscriptionUpdated = true;
       responseData.subscriptionPlanId = activeSubscription.planId;
       responseData.subscriptionTotalCredits = activeSubscription.planSnapshot.totalCredits + 2;

@@ -6,7 +6,7 @@ async function resetFreeUserCredits() {
   const today = moment().startOf("day").toDate();
 
   const users = await User.find({
-    planName: "Free",  // Changed from isSubscribed: false
+    planName: "Free", 
     $or: [
       { lastCreditReset: null },
       { lastCreditReset: { $lt: today } }
@@ -17,12 +17,10 @@ async function resetFreeUserCredits() {
     user.dailyCredits = 4;
     user.lastCreditReset = new Date();
     user.totalCredits = 4;
-    user.usedImageCredits = 0;  // Also reset used credits
-    user.usedPromptCredits = 0; // Also reset used credits
+    user.usedImageCredits = 0; 
+    user.usedPromptCredits = 0;
     
     await user.save();
-
-    // If free user somehow has a subscription, update it too
     if (user.currentSubscription) {
       try {
         await UserSubscription.findOneAndUpdate(
@@ -43,8 +41,6 @@ async function resetFreeUserCredits() {
       }
     }
   }
-
-  console.log(`✅ Reset daily credits for ${users.length} free users (planName: Free)`);
 }
 
 module.exports = resetFreeUserCredits;
