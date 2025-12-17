@@ -20,7 +20,7 @@ function buildPlanSnapshot(plan) {
     imageGenerationCredits: num(plan?.imageGenerationCredits),
     promptGenerationCredits: num(plan?.promptGenerationCredits),
     features: Array.isArray(plan?.features) ? plan.features : [],
-    version: (plan?.version ?? "").toString() || "1"
+    version: (plan?.version ?? "").toString() || "1",
   };
 }
 
@@ -39,7 +39,7 @@ class AppleCancellationHandler {
     console.error(`[AppleCancellationHandler][ERROR] ${message}`, {
       error: error.message,
       stack: error.stack,
-      response: error.response?.data
+      response: error.response?.data,
     });
   }
 
@@ -78,31 +78,31 @@ class AppleCancellationHandler {
       };
 
       const url = `https://api.storekit.itunes.apple.com/inApps/v1/subscriptions/${originalTransactionId}`;
-      
+
       const response = await axios.get(url, { headers });
       return response.data;
     } catch (error) {
       if (error.response?.status === 404) {
-        return { 
+        return {
           status: "NOT_FOUND",
           errorCode: error.response?.data?.errorCode,
-          errorMessage: error.response?.data?.errorMessage
+          errorMessage: error.response?.data?.errorMessage,
         };
       }
 
       if (error.response?.status === 401) {
         throw new Error("Invalid App Store Connect API credentials");
       }
-      
+
       throw error;
     }
   }
 
   isValidTransactionId(transactionId) {
     if (!transactionId) return false;
-    if (typeof transactionId !== 'string') return false;
+    if (typeof transactionId !== "string") return false;
     if (transactionId.length < 10) return false;
-    
+
     return /^\d+$/.test(transactionId);
   }
 
@@ -113,16 +113,28 @@ class AppleCancellationHandler {
           $match: {
             platform: "ios",
             $or: [
-              { originalTransactionId: { $exists: true, $ne: null, $nin: ["", " "] } },
-              { transactionId: { $exists: true, $ne: null, $nin: ["", " "] } }
-            ]
-          }
+              {
+                originalTransactionId: {
+                  $exists: true,
+                  $ne: null,
+                  $nin: ["", " "],
+                },
+              },
+              { transactionId: { $exists: true, $ne: null, $nin: ["", " "] } },
+            ],
+          },
         },
         { $sort: { createdAt: -1 } },
-        { $group: { _id: "$userId", latestRecord: { $first: "$$ROOT" } } }
+        { $group: { _id: "$userId", latestRecord: { $first: "$$ROOT" } } },
       ]);
 
-      const results = { processed: 0, updated: 0, errors: 0, details: [], skipped: 0 };
+      const results = {
+        processed: 0,
+        updated: 0,
+        errors: 0,
+        details: [],
+        skipped: 0,
+      };
 
       for (const record of allPaymentRecords) {
         const paymentRecord = record.latestRecord;
@@ -131,41 +143,50 @@ class AppleCancellationHandler {
           continue;
         }
 
-        const transactionId = paymentRecord.originalTransactionId || paymentRecord.transactionId;
+        const transactionId =
+          paymentRecord.originalTransactionId || paymentRecord.transactionId;
         if (!transactionId || !transactionId.trim()) {
           results.skipped++;
           continue;
         }
 
         try {
-          const appStoreStatus = await this.getSubscriptionStatusFromAppStore(transactionId);
-          
+          const appStoreStatus = await this.getSubscriptionStatusFromAppStore(
+            transactionId
+          );
+
           if (appStoreStatus) {
-            const needsUpdate = await this.compareAndUpdateLocalRecords(paymentRecord, appStoreStatus);
+            const needsUpdate = await this.compareAndUpdateLocalRecords(
+              paymentRecord,
+              appStoreStatus
+            );
             if (needsUpdate) results.updated++;
             results.details.push({
               paymentId: paymentRecord._id,
               transactionId: transactionId,
               localStatus: paymentRecord.status,
               appStoreStatus: appStoreStatus.finalStatus,
-              updated: needsUpdate
+              updated: needsUpdate,
             });
           }
 
           results.processed++;
           await new Promise((r) => setTimeout(r, 100));
-          
         } catch (error) {
-          if (error.message.includes("Invalid App Store Connect API credentials")) {
+          if (
+            error.message.includes("Invalid App Store Connect API credentials")
+          ) {
             throw error;
           }
           results.errors++;
-          this.logError(`Error processing payment record ${paymentRecord._id}`, error);
+          this.logError(
+            `Error processing payment record ${paymentRecord._id}`,
+            error
+          );
         }
       }
 
       return results;
-
     } catch (error) {
       this.logError("Failed to sync subscriptions", error);
       throw error;
@@ -174,20 +195,26 @@ class AppleCancellationHandler {
 
   async getSubscriptionStatusFromAppStore(transactionId) {
     try {
-      const subscriptionStatus = await this.getSubscriptionStatus(transactionId);
+      const subscriptionStatus = await this.getSubscriptionStatus(
+        transactionId
+      );
 
       if (subscriptionStatus.status === "NOT_FOUND") {
-        const shouldDowngrade = await this.shouldDowngradeNotFoundSubscription(transactionId);
-        
+        const shouldDowngrade = await this.shouldDowngradeNotFoundSubscription(
+          transactionId
+        );
+
         return {
           isCancelledOrExpired: shouldDowngrade,
-          cancellationType: shouldDowngrade ? "subscription_not_found" : "active",
+          cancellationType: shouldDowngrade
+            ? "subscription_not_found"
+            : "active",
           isInGracePeriod: false,
           isExpired: shouldDowngrade,
           expiryTime: shouldDowngrade ? new Date() : null,
           finalStatus: shouldDowngrade ? "cancelled" : "active",
           autoRenewing: !shouldDowngrade,
-          foundInAppStore: false
+          foundInAppStore: false,
         };
       }
 
@@ -200,21 +227,29 @@ class AppleCancellationHandler {
           expiryTime: null,
           finalStatus: "active",
           autoRenewing: true,
-          foundInAppStore: false
+          foundInAppStore: false,
         };
       }
 
       return this.analyzeAppleSubscriptionStatus(subscriptionStatus);
     } catch (error) {
-      this.logError(`Error fetching subscription status for ${transactionId}`, error);
+      this.logError(
+        `Error fetching subscription status for ${transactionId}`,
+        error
+      );
       return null;
     }
   }
 
   analyzeAppleSubscriptionStatus(subscriptionData) {
     const now = new Date();
-    
-    if (!subscriptionData || !subscriptionData.data || !Array.isArray(subscriptionData.data) || subscriptionData.data.length === 0) {
+
+    if (
+      !subscriptionData ||
+      !subscriptionData.data ||
+      !Array.isArray(subscriptionData.data) ||
+      subscriptionData.data.length === 0
+    ) {
       return {
         isCancelledOrExpired: false,
         cancellationType: "active",
@@ -223,23 +258,27 @@ class AppleCancellationHandler {
         isExpired: false,
         isInGracePeriod: false,
         finalStatus: "active",
-        foundInAppStore: true
+        foundInAppStore: true,
       };
     }
 
     const latestTransaction = subscriptionData.data[0];
     const lastSubscriptionEvent = latestTransaction.lastTransactions?.[0];
-    
-    const expiryTime = lastSubscriptionEvent?.expiresDate ? new Date(lastSubscriptionEvent.expiresDate) : null;
+
+    const expiryTime = lastSubscriptionEvent?.expiresDate
+      ? new Date(lastSubscriptionEvent.expiresDate)
+      : null;
     const isExpired = expiryTime ? expiryTime.getTime() < now.getTime() : true;
     const autoRenewing = latestTransaction.autoRenewStatus === 1;
-    
-    const userCancellationTime = lastSubscriptionEvent?.signedDate ? new Date(lastSubscriptionEvent.signedDate) : null;
+
+    const userCancellationTime = lastSubscriptionEvent?.signedDate
+      ? new Date(lastSubscriptionEvent.signedDate)
+      : null;
     const isRefunded = lastSubscriptionEvent?.revocationReason !== undefined;
     const isRevoked = lastSubscriptionEvent?.revocationReason !== undefined;
-    
+
     const isInGracePeriod = this.isInGracePeriod(expiryTime, isExpired);
-    
+
     let cancellationType = "active";
     let finalStatus = "active";
 
@@ -273,7 +312,7 @@ class AppleCancellationHandler {
       isRefunded,
       isRevoked,
       finalStatus,
-      foundInAppStore: true
+      foundInAppStore: true,
     };
   }
 
@@ -282,23 +321,23 @@ class AppleCancellationHandler {
       const paymentRecord = await PaymentRecord.findOne({
         $or: [
           { originalTransactionId: transactionId },
-          { transactionId: transactionId }
-        ]
+          { transactionId: transactionId },
+        ],
       });
 
       if (!paymentRecord) {
         return false;
       }
-      
+
       const createdAt = new Date(paymentRecord.createdAt);
       const now = new Date();
       const daysSinceCreation = (now - createdAt) / (1000 * 60 * 60 * 24);
-      
+
       if (paymentRecord.expiryDate) {
         const expiryDate = new Date(paymentRecord.expiryDate);
         return expiryDate < now && daysSinceCreation > 30;
       }
-      
+
       return daysSinceCreation > 60;
     } catch (error) {
       return false;
@@ -307,6 +346,10 @@ class AppleCancellationHandler {
 
   async compareAndUpdateLocalRecords(paymentRecord, appStoreStatus) {
     try {
+      const [freePlan] = await Promise.all([
+        SubscriptionPlan.findOne({ type: "free" }),
+      ]);
+      if (!freePlan) throw new Error("Free plan not configured");
       const userId = paymentRecord.userId;
       const freeSnapshot = buildPlanSnapshot(freePlan);
 
@@ -315,11 +358,14 @@ class AppleCancellationHandler {
         {
           $set: {
             status: appStoreStatus.finalStatus,
-            cancelledAt: appStoreStatus.finalStatus === "cancelled" ? new Date() : paymentRecord.cancelledAt,
+            cancelledAt:
+              appStoreStatus.finalStatus === "cancelled"
+                ? new Date()
+                : paymentRecord.cancelledAt,
             cancellationType: appStoreStatus.cancellationType,
             lastChecked: new Date(),
-            expiryDate: appStoreStatus.expiryTime
-          }
+            expiryDate: appStoreStatus.expiryTime,
+          },
         }
       );
 
@@ -328,18 +374,26 @@ class AppleCancellationHandler {
 
       let userSubscription = await UserSubscription.findOne({
         userId: userId,
-        $or: [{ isActive: true }, { status: { $in: ["active", "grace_period", "cancelled"] } }]
+        $or: [
+          { isActive: true },
+          { status: { $in: ["active", "grace_period", "cancelled"] } },
+        ],
       }).populate("planId");
 
-      if (appStoreStatus.finalStatus === "cancelled" && appStoreStatus.isExpired) {
+      if (
+        appStoreStatus.finalStatus === "cancelled" &&
+        appStoreStatus.isExpired
+      ) {
         const activeRecord = await PaymentRecord.findOne({
           userId,
           platform: "ios",
-          status: { $in: ["active", "grace_period"] }
+          status: { $in: ["active", "grace_period"] },
         });
 
         if (activeRecord) {
-          console.log(`⏩ Skipping downgrade: user ${userId} has another active iOS subscription`);
+          console.log(
+            `⏩ Skipping downgrade: user ${userId} has another active iOS subscription`
+          );
           return false;
         }
 
@@ -356,7 +410,7 @@ class AppleCancellationHandler {
                 endDate: new Date(),
                 lastUpdated: new Date(),
                 planSnapshot: freeSnapshot,
-              }
+              },
             }
           );
         }
@@ -365,7 +419,10 @@ class AppleCancellationHandler {
         return true;
       }
 
-      if (appStoreStatus.finalStatus === "cancelled" && !appStoreStatus.isExpired) {
+      if (
+        appStoreStatus.finalStatus === "cancelled" &&
+        !appStoreStatus.isExpired
+      ) {
         if (userSubscription) {
           await UserSubscription.updateOne(
             { _id: userSubscription._id },
@@ -378,12 +435,16 @@ class AppleCancellationHandler {
                 status: "cancelled",
                 endDate: appStoreStatus.expiryTime,
                 lastUpdated: new Date(),
-               planSnapshot: freeSnapshot,
-              }
+                planSnapshot: freeSnapshot,
+              },
             }
           );
         }
-        await this.updateUserForCancelledButActive(userId, appStoreStatus.cancellationType, appStoreStatus.expiryTime);
+        await this.updateUserForCancelledButActive(
+          userId,
+          appStoreStatus.cancellationType,
+          appStoreStatus.expiryTime
+        );
         return true;
       }
 
@@ -399,8 +460,8 @@ class AppleCancellationHandler {
                 cancellationReason: appStoreStatus.cancellationType,
                 status: "grace_period",
                 endDate: appStoreStatus.expiryTime,
-                lastUpdated: new Date()
-              }
+                lastUpdated: new Date(),
+              },
             }
           );
         }
@@ -409,9 +470,17 @@ class AppleCancellationHandler {
       }
 
       if (appStoreStatus.finalStatus === "active") {
-        const prevEnd = userSubscription?.endDate ? new Date(userSubscription.endDate) : null;
-        const nextEnd = appStoreStatus.expiryTime ? new Date(appStoreStatus.expiryTime) : null;
-        const expiryChanged = !!(prevEnd && nextEnd && nextEnd.getTime() !== prevEnd.getTime());
+        const prevEnd = userSubscription?.endDate
+          ? new Date(userSubscription.endDate)
+          : null;
+        const nextEnd = appStoreStatus.expiryTime
+          ? new Date(appStoreStatus.expiryTime)
+          : null;
+        const expiryChanged = !!(
+          prevEnd &&
+          nextEnd &&
+          nextEnd.getTime() !== prevEnd.getTime()
+        );
 
         if (userSubscription) {
           await UserSubscription.updateOne(
@@ -422,13 +491,17 @@ class AppleCancellationHandler {
                 isActive: true,
                 status: "active",
                 endDate: nextEnd,
-                lastUpdated: new Date()
-              }
+                lastUpdated: new Date(),
+              },
             }
           );
         }
 
-        await this.updateUserForActiveSubscription(userId, userSubscription, expiryChanged);
+        await this.updateUserForActiveSubscription(
+          userId,
+          userSubscription,
+          expiryChanged
+        );
 
         if (!userSubscription) {
           await this.ensureActiveSubscriptionRecord(userId, nextEnd);
@@ -439,12 +512,19 @@ class AppleCancellationHandler {
 
       return false;
     } catch (error) {
-      this.logError(`Error updating records for user ${paymentRecord.userId}`, error);
+      this.logError(
+        `Error updating records for user ${paymentRecord.userId}`,
+        error
+      );
       return false;
     }
   }
 
-  async updateUserForActiveSubscription(userId, userSubscriptionDoc, expiryChanged) {
+  async updateUserForActiveSubscription(
+    userId,
+    userSubscriptionDoc,
+    expiryChanged
+  ) {
     try {
       const user = await User.findById(userId);
       if (!user) return;
@@ -452,7 +532,8 @@ class AppleCancellationHandler {
       let planDoc = null;
       if (userSubscriptionDoc?.planId) {
         planDoc =
-          typeof userSubscriptionDoc.planId === "object" && userSubscriptionDoc.planId._id
+          typeof userSubscriptionDoc.planId === "object" &&
+          userSubscriptionDoc.planId._id
             ? userSubscriptionDoc.planId
             : await SubscriptionPlan.findById(userSubscriptionDoc.planId);
       }
@@ -460,7 +541,7 @@ class AppleCancellationHandler {
         const activeSub = await UserSubscription.findOne({
           userId,
           isActive: true,
-          status: "active"
+          status: "active",
         }).populate("planId");
         planDoc = activeSub?.planId || null;
       }
@@ -468,7 +549,7 @@ class AppleCancellationHandler {
 
       const snap = buildPlanSnapshot(planDoc);
 
-      if (expiryChanged && user.lastCreditReset && user.planName != 'Free') {
+      if (expiryChanged && user.lastCreditReset && user.planName != "Free") {
         const resetDate = new Date(user.lastCreditReset);
         const now = new Date();
         const timeDiff = now.getTime() - resetDate.getTime();
@@ -477,7 +558,10 @@ class AppleCancellationHandler {
         if (hoursDiff >= 24) {
           user.totalCredits = num(planDoc.totalCredits, 0);
           user.imageGenerationCredits = num(planDoc.imageGenerationCredits, 0);
-          user.promptGenerationCredits = num(planDoc.promptGenerationCredits, 0);
+          user.promptGenerationCredits = num(
+            planDoc.promptGenerationCredits,
+            0
+          );
           user.lastCreditReset = now;
         }
       } else if (!user.lastCreditReset) {
@@ -509,11 +593,13 @@ class AppleCancellationHandler {
       const existing = await UserSubscription.findOne({
         userId,
         isActive: true,
-        status: "active"
+        status: "active",
       });
       if (existing) return;
 
-      const paidSub = await UserSubscription.findOne({ userId }).sort({ createdAt: -1 }).populate("planId");
+      const paidSub = await UserSubscription.findOne({ userId })
+        .sort({ createdAt: -1 })
+        .populate("planId");
       if (!paidSub?.planId) return;
 
       const snap = buildPlanSnapshot(paidSub.planId);
@@ -528,7 +614,7 @@ class AppleCancellationHandler {
         paymentMethod: paidSub.paymentMethod || "apple",
         autoRenew: true,
         status: "active",
-        planSnapshot: snap
+        planSnapshot: snap,
       });
       await sub.save();
     } catch (error) {
@@ -559,7 +645,10 @@ class AppleCancellationHandler {
         await user.save();
       }
     } catch (error) {
-      this.logError(`Error updating cancelled but active user ${userId}`, error);
+      this.logError(
+        `Error updating cancelled but active user ${userId}`,
+        error
+      );
     }
   }
 
@@ -567,16 +656,20 @@ class AppleCancellationHandler {
     try {
       const [freePlan, user] = await Promise.all([
         SubscriptionPlan.findOne({ type: "free" }),
-        User.findById(userId)
+        User.findById(userId),
       ]);
 
       if (!freePlan) throw new Error("Free plan not configured");
       if (!user) throw new Error("User not found");
 
       const isAlreadyOnFreePlan =
-        (user.subscriptionStatus === "cancelled" || user.subscriptionStatus === "active") && user.planName === "Free";
+        (user.subscriptionStatus === "cancelled" ||
+          user.subscriptionStatus === "active") &&
+        user.planName === "Free";
 
-      const lastDowngrade = user.planDowngradedAt ? new Date(user.planDowngradedAt) : null;
+      const lastDowngrade = user.planDowngradedAt
+        ? new Date(user.planDowngradedAt)
+        : null;
       const now = new Date();
 
       const isSameDay =
@@ -612,7 +705,7 @@ class AppleCancellationHandler {
       await User.updateOne({ _id: userId }, { $set: updateData });
 
       await UserSubscription.updateMany(
-        { userId: userId},
+        { userId: userId },
         {
           $set: {
             isActive: true,
@@ -622,10 +715,9 @@ class AppleCancellationHandler {
             endDate: now,
             lastUpdated: now,
             planSnapshot: freeSnapshot,
-          }
+          },
         }
       );
-
     } catch (error) {
       this.logError(`Failed to downgrade user ${userId}`, error);
       throw error;
@@ -650,11 +742,11 @@ class AppleCancellationHandler {
   }
 
   async forceExpireSubscription(transactionId) {
-    const paymentRecord = await PaymentRecord.findOne({ 
+    const paymentRecord = await PaymentRecord.findOne({
       $or: [
         { originalTransactionId: transactionId },
-        { transactionId: transactionId }
-      ]
+        { transactionId: transactionId },
+      ],
     });
     if (paymentRecord) {
       await this.compareAndUpdateLocalRecords(paymentRecord, {
@@ -665,32 +757,34 @@ class AppleCancellationHandler {
         expiryTime: new Date(),
         finalStatus: "cancelled",
         autoRenewing: false,
-        foundInAppStore: true
+        foundInAppStore: true,
       });
     }
   }
 
   async getSubscriptionStats() {
     try {
-      const totalSubscriptions = await PaymentRecord.countDocuments({ platform: "ios" });
-      const activeSubscriptions = await PaymentRecord.countDocuments({ 
-        platform: "ios", 
-        status: "active" 
+      const totalSubscriptions = await PaymentRecord.countDocuments({
+        platform: "ios",
       });
-      const cancelledSubscriptions = await PaymentRecord.countDocuments({ 
-        platform: "ios", 
-        status: "cancelled" 
+      const activeSubscriptions = await PaymentRecord.countDocuments({
+        platform: "ios",
+        status: "active",
       });
-      const gracePeriodSubscriptions = await PaymentRecord.countDocuments({ 
-        platform: "ios", 
-        status: "grace_period" 
+      const cancelledSubscriptions = await PaymentRecord.countDocuments({
+        platform: "ios",
+        status: "cancelled",
+      });
+      const gracePeriodSubscriptions = await PaymentRecord.countDocuments({
+        platform: "ios",
+        status: "grace_period",
       });
 
       return {
         total: totalSubscriptions,
         active: activeSubscriptions,
         cancelled: cancelledSubscriptions,
-        gracePeriod: gracePeriodSubscriptions
+        gracePeriod: gracePeriodSubscriptions,
       };
     } catch (error) {
       return {};
