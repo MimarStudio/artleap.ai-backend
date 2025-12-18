@@ -44,6 +44,11 @@ const UserSchema = new mongoose.Schema({
     selected: { type: [String], default: [] }, 
     categories: { type: [String], default: [] },
     lastUpdated: { type: Date, default: Date.now }
+  },
+  rewardCount: {
+    dailyCount: { type: Number, default: 0 },
+    totalCount: { type: Number, default: 0 },
+    lastRewardDate: { type: Date, default: null }
   }
 });
 

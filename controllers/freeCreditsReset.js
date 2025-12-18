@@ -20,7 +20,19 @@ async function resetFreeUserCredits() {
     user.usedImageCredits = 0; 
     user.usedPromptCredits = 0;
     
+    if (user.rewardCount) {
+      user.rewardCount.dailyCount = 0;
+      user.rewardCount.lastRewardDate = null;
+    } else {
+      user.rewardCount = {
+        dailyCount: 0,
+        totalCount: user.rewardCount?.totalCount || 0,
+        lastRewardDate: null
+      };
+    }
+    
     await user.save();
+    
     if (user.currentSubscription) {
       try {
         await UserSubscription.findOneAndUpdate(
