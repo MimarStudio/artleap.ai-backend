@@ -543,8 +543,10 @@ class GoogleCancellationHandler {
     try {
       const existing = await UserSubscription.findOne({
         userId,
-        "planSnapshot.type": { $ne: "free" }, 
-        status: "active",
+        isActive: true,
+      });
+      console.log(`Checking existing active subscription for user ${userId}:`, {
+        exists: !!existing,
       });
       if (existing) return;
 
