@@ -500,7 +500,6 @@ class GoogleCancellationHandler {
       if (!planDoc) return;
 
       const snap = buildPlanSnapshot(planDoc);
-      console.log("plans reset to " + user.planName);
       if (expiryChanged && user.lastCreditReset && user.planName != "Free") {
         const resetDate = new Date(user.lastCreditReset);
         const now = new Date();
@@ -545,7 +544,9 @@ class GoogleCancellationHandler {
       const existing = await UserSubscription.findOne({
         userId,
         isActive: true,
-        status: "active",
+      });
+      console.log(`Checking existing active subscription for user ${userId}:`, {
+        exists: !!existing,
       });
       if (existing) return;
 

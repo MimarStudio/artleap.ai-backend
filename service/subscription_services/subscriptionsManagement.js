@@ -594,12 +594,9 @@ class SubscriptionManagement {
     try {
       const paidSubscription = await UserSubscription.findOne({
         userId,
-        isActive: true,
+        "planSnapshot.type": { $ne: "free" }, 
         endDate: { $gt: new Date() },
-        isTrial: false,
-      })
-        .populate("planId")
-        .populate({ path: "userId" });
+      }).populate("planId").populate({ path: "userId" });
 
       return paidSubscription || null;
     } catch (error) {
@@ -647,7 +644,6 @@ class SubscriptionManagement {
           const previouslyFree = user.planType === "free";
 
           if (!previouslyFree) {
-            // carry over only from paid → paid
             const uImg = num(user.imageGenerationCredits);
             const uPr = num(user.promptGenerationCredits);
             const uTot = num(user.totalCredits);
