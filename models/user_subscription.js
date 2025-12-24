@@ -27,4 +27,10 @@ const userSubscriptionSchema = new mongoose.Schema({
   },
 });
 
+userSubscriptionSchema.index({ userId: 1 });
+userSubscriptionSchema.index({ endDate: 1 });
+userSubscriptionSchema.index({ isActive: 1 });
+userSubscriptionSchema.index({ userId: 1, isActive: 1 });
+
+
 module.exports = mongoose.model("UserSubscription", userSubscriptionSchema);

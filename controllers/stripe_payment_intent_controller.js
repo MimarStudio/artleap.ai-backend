@@ -12,9 +12,8 @@ class PaymentIntentController {
         });
       }
 
-      // Create a Payment Intent
       const paymentIntent = await stripe.paymentIntents.create({
-        amount, // Amount in cents
+        amount, 
         currency,
         metadata: { userId, planId },
         automatic_payment_methods: {

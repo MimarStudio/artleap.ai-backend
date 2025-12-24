@@ -455,9 +455,9 @@ class GoogleCancellationHandler {
           expiryChanged
         );
 
-        if (!userSubscription) {
-          await this.ensureActiveSubscriptionRecord(userId, nextEnd);
-        }
+        // if (!userSubscription) {
+        //   await this.ensureActiveSubscriptionRecord(userId, nextEnd);
+        // }
 
         return true;
       }
@@ -539,41 +539,41 @@ class GoogleCancellationHandler {
     }
   }
 
-  async ensureActiveSubscriptionRecord(userId, endDate) {
-    try {
-      const existing = await UserSubscription.findOne({
-        userId,
-        isActive: true,
-      });
-      console.log(`Checking existing active subscription for user ${userId}:`, {
-        exists: !!existing,
-      });
-      if (existing) return;
+  // async ensureActiveSubscriptionRecord(userId, endDate) {
+  //   try {
+  //     const existing = await UserSubscription.findOne({
+  //       userId,
+  //       isActive: true,
+  //     });
+  //     console.log(`Checking existing active subscription for user ${userId}:`, {
+  //       exists: !!existing,
+  //     });
+  //     if (existing) return;
 
-      const paidSub = await UserSubscription.findOne({ userId })
-        .sort({ createdAt: -1 })
-        .populate("planId");
-      if (!paidSub?.planId) return;
+  //     const paidSub = await UserSubscription.findOne({ userId })
+  //       .sort({ createdAt: -1 })
+  //       .populate("planId");
+  //     if (!paidSub?.planId) return;
 
-      const snap = buildPlanSnapshot(paidSub.planId);
+  //     const snap = buildPlanSnapshot(paidSub.planId);
 
-      const sub = new UserSubscription({
-        userId,
-        planId: paidSub.planId._id,
-        startDate: new Date(),
-        endDate: endDate || new Date(),
-        isTrial: false,
-        isActive: true,
-        paymentMethod: paidSub.paymentMethod || "google_play",
-        autoRenew: true,
-        status: "active",
-        planSnapshot: snap,
-      });
-      await sub.save();
-    } catch (error) {
-      throw error;
-    }
-  }
+  //     const sub = new UserSubscription({
+  //       userId,
+  //       planId: paidSub.planId._id,
+  //       startDate: new Date(),
+  //       endDate: endDate || new Date(),
+  //       isTrial: false,
+  //       isActive: true,
+  //       paymentMethod: paidSub.paymentMethod || "google_play",
+  //       autoRenew: true,
+  //       status: "active",
+  //       planSnapshot: snap,
+  //     });
+  //     await sub.save();
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
 
   async updateUserForGracePeriod(userId) {
     try {
@@ -656,20 +656,20 @@ class GoogleCancellationHandler {
 
       await User.updateOne({ _id: userId }, { $set: updateData });
 
-      await UserSubscription.updateMany(
-        { userId: userId},
-        {
-          $set: {
-            isActive: true,
-            status: "cancelled",
-            autoRenew: false,
-            cancelledAt: now,
-            endDate: now,
-            lastUpdated: now,
-            planSnapshot: freeSnapshot,
-          },
-        }
-      );
+      // await UserSubscription.updateMany(
+      //   { userId: userId},
+      //   {
+      //     $set: {
+      //       isActive: true,
+      //       status: "cancelled",
+      //       autoRenew: false,
+      //       cancelledAt: now,
+      //       endDate: now,
+      //       lastUpdated: now,
+      //       planSnapshot: freeSnapshot,
+      //     },
+      //   }
+      // );
 
     } catch (error) {
       this.logError(`Failed to downgrade user ${userId}`, error);
