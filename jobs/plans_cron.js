@@ -140,20 +140,20 @@ const cronTask = cron.schedule('* * * * *', runAllTasksOnce, {
   timezone: "Asia/Karachi"
 });
 
-const awardLegacyCreditsTask = cron.schedule('* * * * *', async () => {
-  if (isRunning || !isInitialized || shutdownInProgress) {
-    return;
-  }
-  try {
-    await awardLegacyCredits();
-  } catch (error) {
-    if (!shutdownInProgress) {
-      console.error('Error in legacy credits cron job:', error);
-    }
-  }
-}, {
-  timezone: "Asia/Karachi"
-});
+// const awardLegacyCreditsTask = cron.schedule('* * * * *', async () => {
+//   if (isRunning || !isInitialized || shutdownInProgress) {
+//     return;
+//   }
+//   try {
+//     await awardLegacyCredits();
+//   } catch (error) {
+//     if (!shutdownInProgress) {
+//       console.error('Error in legacy credits cron job:', error);
+//     }
+//   }
+// }, {
+//   timezone: "Asia/Karachi"
+// });
 
 cron.schedule("0 0 * * *", async () => {
   await resetUserCredits();
@@ -170,7 +170,7 @@ const gracefulShutdown = async (signal) => {
   isInitialized = false;
   
   cronTask.stop();
-  awardLegacyCreditsTask.stop();
+  // awardLegacyCreditsTask.stop();
   
   let waitCount = 0;
   const maxWait = 30; 
@@ -213,6 +213,6 @@ module.exports = {
   syncAllSubscriptions,
   cleanupOrphanedSubscriptions,
   resetUserCredits,
-  awardLegacyCredits,
+  // awardLegacyCredits,
   runAllTasksOnce
 };
