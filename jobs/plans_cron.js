@@ -99,12 +99,12 @@ const resetUserCredits = async () => {
   });
 };
 
-const awardLegacyCredits = async () => {
-  await executeWithConnection(async () => {
-     const targetDate = new Date('2025-12-25T00:00:00.000Z');
-    await awardCreditsToLegacyFreeUsers(targetDate);
-  });
-};
+// const awardLegacyCredits = async () => {
+//   await executeWithConnection(async () => {
+//      const targetDate = new Date('2025-12-25T00:00:00.000Z');
+//     await awardCreditsToLegacyFreeUsers(targetDate);
+//   });
+// };
 
 const runAllTasksOnce = async () => {
   if (isRunning || !isInitialized || shutdownInProgress) {
@@ -120,7 +120,7 @@ const runAllTasksOnce = async () => {
     await syncAllSubscriptions();          
     await cleanupOrphanedSubscriptions();
     await resetUserCredits();
-    await awardLegacyCredits();
+    // await awardLegacyCredits();
   } catch (error) {
     if (!shutdownInProgress) {
       console.error('Error in cron job:', error);

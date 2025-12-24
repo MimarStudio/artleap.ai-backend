@@ -594,7 +594,6 @@ class SubscriptionManagement {
     try {
       const paidSubscription = await UserSubscription.findOne({
         userId,
-        "planSnapshot.type": { $ne: "free" }, 
         endDate: { $gt: new Date() },
       }).populate("planId").populate({ path: "userId" });
 
