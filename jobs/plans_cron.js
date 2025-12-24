@@ -3,6 +3,7 @@ const cron = require('node-cron');
 const mongoose = require('mongoose');
 const SubscriptionService = require("../service/subscriptionService");
 const resetFreeUserCredits = require("./../controllers/freeCreditsReset");
+const { awardCreditsToLegacyFreeUsers } = require("./../controllers/bonusAwardCreditsController");
 
 let isInitialized = false;
 let isRunning = false;
@@ -92,10 +93,16 @@ const cleanupOrphanedSubscriptions = async () => {
   );
 };
 
-// New function to reset user credits
 const resetUserCredits = async () => {
   await executeWithConnection(async () => {
     await resetFreeUserCredits();
+  });
+};
+
+const awardLegacyCredits = async () => {
+  await executeWithConnection(async () => {
+     const targetDate = new Date('2025-12-25T00:00:00.000Z');
+    await awardCreditsToLegacyFreeUsers(targetDate);
   });
 };
 
@@ -112,7 +119,8 @@ const runAllTasksOnce = async () => {
     await processGracePeriodSubscriptions();
     await syncAllSubscriptions();          
     await cleanupOrphanedSubscriptions();
-    await resetUserCredits();              // Add credit reset here
+    await resetUserCredits();
+    await awardLegacyCredits();
   } catch (error) {
     if (!shutdownInProgress) {
       console.error('Error in cron job:', error);
@@ -132,6 +140,21 @@ const cronTask = cron.schedule('* * * * *', runAllTasksOnce, {
   timezone: "Asia/Karachi"
 });
 
+const awardLegacyCreditsTask = cron.schedule('* * * * *', async () => {
+  if (isRunning || !isInitialized || shutdownInProgress) {
+    return;
+  }
+  try {
+    await awardLegacyCredits();
+  } catch (error) {
+    if (!shutdownInProgress) {
+      console.error('Error in legacy credits cron job:', error);
+    }
+  }
+}, {
+  timezone: "Asia/Karachi"
+});
+
 cron.schedule("0 0 * * *", async () => {
   await resetUserCredits();
 }, {
@@ -147,6 +170,7 @@ const gracefulShutdown = async (signal) => {
   isInitialized = false;
   
   cronTask.stop();
+  awardLegacyCreditsTask.stop();
   
   let waitCount = 0;
   const maxWait = 30; 
@@ -188,6 +212,7 @@ module.exports = {
   processGracePeriodSubscriptions,
   syncAllSubscriptions,
   cleanupOrphanedSubscriptions,
-  resetUserCredits,  // Export the new function
+  resetUserCredits,
+  awardLegacyCredits,
   runAllTasksOnce
 };

@@ -225,6 +225,7 @@ const createNotification = async (req, res) => {
     const { userId: rawUserId, type = "general", title, body, data } = req.body;
     const userId = rawUserId || req.user?._id || null;
 
+    // Validate inputs
     if (!title || !body) {
       return res.status(400).json({
         success: false,
@@ -253,6 +254,7 @@ const createNotification = async (req, res) => {
       });
     }
 
+    // Prevent duplicate general notifications
     if (type === "general") {
       const existing = await Notification.findOne({
         type: "general",
@@ -270,9 +272,10 @@ const createNotification = async (req, res) => {
       }
     }
 
+    // Save notification in DB
     const notification = new Notification({
-      title,
-      body,
+      title: title.trim(),
+      body: body.trim(),
       data: data || {},
       type,
       userId: type === "user" ? userId : null,
@@ -280,18 +283,29 @@ const createNotification = async (req, res) => {
 
     await notification.save();
 
-    if (type === "general") {
-      await admin.messaging().send({
-        notification: { title, body },
-        data: data || {},
-        topic: "all",
-      });
-    } else {
-      const tokens = await getDeviceTokens(userId);
+    // 🔔 Push notification logic
+    try {
+      if (type === "general") {
+        // Push to all users subscribed to topic "all"
+        await admin.messaging().send({
+          notification: { title, body },
+          data: data || {},
+          topic: "all",
+        });
+        console.log("📲 Push notification sent to topic 'all'");
+      } else {
+        // Push to specific user(s)
+        const tokens = await getDeviceTokens(userId);
 
-      if (tokens.length > 0) {
-        await sendPushNotification(tokens, { title, body, data });
+        if (tokens.length > 0) {
+          await sendPushNotification(tokens, { title, body, data });
+          console.log(`📲 Push notification sent to ${tokens.length} devices for user ${userId}`);
+        } else {
+          console.warn(`⚠️ No device tokens found for user ${userId}`);
+        }
       }
+    } catch (pushError) {
+      console.error("❌ Error sending push notification:", pushError.message || pushError);
     }
 
     res.status(201).json({
@@ -307,6 +321,7 @@ const createNotification = async (req, res) => {
     });
   }
 };
+
 
 const markAllAsRead = async (req, res) => {
   try {
