@@ -58,7 +58,7 @@ class NotificationService {
       }
 
       const notification = new Notification({
-        userId: user._id,
+        userId: userId,
         title,
         body,
         type: "user",
@@ -70,6 +70,7 @@ class NotificationService {
       });
 
       await notification.save();
+
     } catch (error) {
       console.error("[NotificationService] sendSubscriptionNotification failed:", error);
       throw error;

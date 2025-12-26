@@ -12,6 +12,6 @@ router.patch('/notifications/:notificationId/read', authenticateUser, notificati
 router.patch('/notifications/mark-all-read', authenticateUser, notificationController.markAllAsRead);
 router.delete('/notifications/:notificationId',authenticateUser,notificationController.deleteNotification);
 router.post('/notifications/', authenticateUser, notificationController.createNotification);
-router.post("/notifications/register-token", authenticateUser, fcmController.registerToken);
+router.post("/notifications/register-token", fcmController.registerToken);
 
 module.exports = router;

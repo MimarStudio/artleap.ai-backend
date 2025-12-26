@@ -32,7 +32,6 @@ const forgotPassword = async (req, res) => {
         resetLink, 
         userRecord.displayName || 'Artleap User'
       );
-      console.log(`Password reset email sent to: ${email}`);
       
       return res.status(200).json({
         success: true,

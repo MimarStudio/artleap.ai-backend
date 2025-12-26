@@ -5,6 +5,7 @@ const PaymentRecord = require("../../models/recordPayment_model");
 const User = require("../../models/user");
 const UserSubscription = require("../../models/user_subscription");
 const SubscriptionPlan = require("../../models/subscriptionPlan_model");
+const SubscriptionManagement = require("./../subscription_services/subscriptionsManagement");
 
 function num(v, fallback = 0) {
   const n = Number(v);
@@ -33,6 +34,7 @@ class AppleCancellationHandler {
       process.env.APPLE_PRIVATE_KEY_PATH,
       "utf8"
     );
+    this.subscriptionService = new SubscriptionManagement();
   }
 
   logError(message, error) {
@@ -346,13 +348,9 @@ class AppleCancellationHandler {
 
   async compareAndUpdateLocalRecords(paymentRecord, appStoreStatus) {
     try {
-      const [freePlan] = await Promise.all([
-        SubscriptionPlan.findOne({ type: "free" }),
-      ]);
-      if (!freePlan) throw new Error("Free plan not configured");
       const userId = paymentRecord.userId;
-      const freeSnapshot = buildPlanSnapshot(freePlan);
 
+      // Update payment record
       await PaymentRecord.updateOne(
         { _id: paymentRecord._id },
         {
@@ -380,10 +378,12 @@ class AppleCancellationHandler {
         ],
       }).populate("planId");
 
+      // Handle different cancellation statuses
       if (
         appStoreStatus.finalStatus === "cancelled" &&
         appStoreStatus.isExpired
       ) {
+        // Check for other active subscriptions
         const activeRecord = await PaymentRecord.findOne({
           userId,
           platform: "ios",
@@ -392,37 +392,23 @@ class AppleCancellationHandler {
 
         if (activeRecord) {
           console.log(
-            `⏩ Skipping downgrade: user ${userId} has another active iOS subscription`
+            `⏩ Skipping cancellation: user ${userId} has another active iOS subscription`
           );
           return false;
         }
 
-        if (userSubscription) {
-          await UserSubscription.updateOne(
-            { _id: userSubscription._id },
-            {
-              $set: {
-                autoRenew: false,
-                isActive: true,
-                cancelledAt: new Date(),
-                cancellationReason: appStoreStatus.cancellationType,
-                status: "cancelled",
-                endDate: new Date(),
-                lastUpdated: new Date(),
-                planSnapshot: freeSnapshot,
-              },
-            }
-          );
-        }
-
-        await this.downgradeToFreePlan(userId, appStoreStatus.cancellationType);
+        // Use subscription service for cancellation
+        await this.subscriptionService.cancelSubscription(
+          userId,
+          true,
+        );
         return true;
       }
 
       if (
-        appStoreStatus.finalStatus === "cancelled" &&
-        !appStoreStatus.isExpired
+        appStoreStatus.finalStatus === "cancelled" && !appStoreStatus.isExpired
       ) {
+        // User cancelled but subscription is still active until expiry
         if (userSubscription) {
           await UserSubscription.updateOne(
             { _id: userSubscription._id },
@@ -435,15 +421,15 @@ class AppleCancellationHandler {
                 status: "cancelled",
                 endDate: appStoreStatus.expiryTime,
                 lastUpdated: new Date(),
-                planSnapshot: freeSnapshot,
               },
             }
           );
         }
-        await this.updateUserForCancelledButActive(
+        
+        // Update user subscription status
+        await this.subscriptionService.cancelSubscription(
           userId,
-          appStoreStatus.cancellationType,
-          appStoreStatus.expiryTime
+          true,
         );
         return true;
       }
@@ -465,7 +451,6 @@ class AppleCancellationHandler {
             }
           );
         }
-        await this.updateUserForGracePeriod(userId);
         return true;
       }
 
@@ -497,6 +482,7 @@ class AppleCancellationHandler {
           );
         }
 
+        // Update user for active subscription
         await this.updateUserForActiveSubscription(
           userId,
           userSubscription,
@@ -622,108 +608,6 @@ class AppleCancellationHandler {
     }
   }
 
-  async updateUserForGracePeriod(userId) {
-    try {
-      const user = await User.findOne({ _id: userId });
-      if (user) {
-        user.subscriptionStatus = "grace_period";
-        await user.save();
-      }
-    } catch (error) {
-      this.logError(`Error updating user grace period for ${userId}`, error);
-    }
-  }
-
-  async updateUserForCancelledButActive(userId, cancellationType, expiryTime) {
-    try {
-      const user = await User.findOne({ _id: userId });
-      if (user) {
-        user.subscriptionStatus = "cancelled";
-        user.cancellationReason = cancellationType;
-        user.isSubscribed = true;
-        user.subscriptionExpiry = expiryTime;
-        await user.save();
-      }
-    } catch (error) {
-      this.logError(
-        `Error updating cancelled but active user ${userId}`,
-        error
-      );
-    }
-  }
-
-  async downgradeToFreePlan(userId, cancellationType = "unknown") {
-    try {
-      const [freePlan, user] = await Promise.all([
-        SubscriptionPlan.findOne({ type: "free" }),
-        User.findById(userId),
-      ]);
-
-      if (!freePlan) throw new Error("Free plan not configured");
-      if (!user) throw new Error("User not found");
-
-      const isAlreadyOnFreePlan =
-        (user.subscriptionStatus === "cancelled" ||
-          user.subscriptionStatus === "active") &&
-        user.planName === "Free";
-
-      const lastDowngrade = user.planDowngradedAt
-        ? new Date(user.planDowngradedAt)
-        : null;
-      const now = new Date();
-
-      const isSameDay =
-        lastDowngrade &&
-        lastDowngrade.getUTCFullYear() === now.getUTCFullYear() &&
-        lastDowngrade.getUTCMonth() === now.getUTCMonth() &&
-        lastDowngrade.getUTCDate() === now.getUTCDate();
-
-      if (isAlreadyOnFreePlan && isSameDay) {
-        return;
-      }
-
-      const freeSnapshot = buildPlanSnapshot(freePlan);
-
-      const updateData = {
-        isSubscribed: false,
-        subscriptionStatus: "active",
-        cancellationReason: cancellationType,
-        planName: freePlan.name || "Free",
-        watermarkEnabled: true,
-      };
-
-      if (!isAlreadyOnFreePlan && !isSameDay) {
-        updateData.totalCredits = 4;
-        updateData.dailyCredits = 4;
-        updateData.imageGenerationCredits = 0;
-        updateData.promptGenerationCredits = 4;
-        updateData.usedImageCredits = 0;
-        updateData.usedPromptCredits = 0;
-        updateData.lastCreditReset = now;
-      }
-
-      await User.updateOne({ _id: userId }, { $set: updateData });
-
-      await UserSubscription.updateMany(
-        { userId: userId },
-        {
-          $set: {
-            isActive: true,
-            status: "cancelled",
-            autoRenew: false,
-            cancelledAt: now,
-            endDate: now,
-            lastUpdated: now,
-            planSnapshot: freeSnapshot,
-          },
-        }
-      );
-    } catch (error) {
-      this.logError(`Failed to downgrade user ${userId}`, error);
-      throw error;
-    }
-  }
-
   isInGracePeriod(expiryTime, isExpired) {
     if (isExpired) return false;
     if (!expiryTime) return false;
@@ -749,16 +633,10 @@ class AppleCancellationHandler {
       ],
     });
     if (paymentRecord) {
-      await this.compareAndUpdateLocalRecords(paymentRecord, {
-        isCancelledOrExpired: true,
-        cancellationType: "force_expired",
-        isInGracePeriod: false,
-        isExpired: true,
-        expiryTime: new Date(),
-        finalStatus: "cancelled",
-        autoRenewing: false,
-        foundInAppStore: true,
-      });
+      await this.subscriptionService.cancelSubscription(
+        paymentRecord.userId,
+        true,
+      );
     }
   }
 

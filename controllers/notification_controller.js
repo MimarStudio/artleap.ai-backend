@@ -292,14 +292,12 @@ const createNotification = async (req, res) => {
           data: data || {},
           topic: "all",
         });
-        console.log("📲 Push notification sent to topic 'all'");
       } else {
         // Push to specific user(s)
         const tokens = await getDeviceTokens(userId);
 
         if (tokens.length > 0) {
           await sendPushNotification(tokens, { title, body, data });
-          console.log(`📲 Push notification sent to ${tokens.length} devices for user ${userId}`);
         } else {
           console.warn(`⚠️ No device tokens found for user ${userId}`);
         }
