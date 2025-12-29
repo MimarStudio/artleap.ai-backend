@@ -4,7 +4,7 @@ const { videoGenerationController } = require("../controllers/videoController");
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB file limit
   fileFilter: (req, file, cb) => {
     const ok = ["image/png", "image/jpeg"].includes(file.mimetype);
     cb(ok ? null : new Error("Only .png and .jpg files are allowed!"), ok);

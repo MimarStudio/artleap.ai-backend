@@ -3,17 +3,17 @@ const fs = require("fs");
 const { GoogleGenAI } = require("@google/genai");
 
 function filesToBase64(files = []) {
-    return files
-        .filter(Boolean)
-        .slice(0, 3)
-        .map((f) => f.buffer.toString("base64"));
+  return files
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((f) => f.buffer.toString("base64"));
 }
 
 function pickModelId(model) {
-    if (model === "veo2") {
-        return { modelId: "veo-2.0-generate-001", enableAudio: false };
-    }
-    return { modelId: "veo-3.1-generate-preview", enableAudio: true };
+  if (model === "veo2") {
+    return { modelId: "veo-2.0-generate-001", enableAudio: false };
+  }
+  return { modelId: "veo-3.1-generate-preview", enableAudio: true };
 }
 
 const videoGenerationController = async (req, res) => {
@@ -30,7 +30,7 @@ const videoGenerationController = async (req, res) => {
       return res.status(400).json({ success: false, message: "Prompt is required!" });
     }
 
-    const files = req.files || []; 
+    const files = req.files || [];
     const imagesB64 = filesToBase64(files);
 
     const { modelId, enableAudio } = pickModelId(model);
@@ -39,6 +39,8 @@ const videoGenerationController = async (req, res) => {
       aspectRatio: ratio,
       durationSeconds: Number(duration),
       enableAudio,
+      image: imagesB64.length > 0 && imagesB64[0],
+      last_frame: imagesB64.length > 0 && imagesB64[imagesB64.length - 1],
     };
 
     const payload = {
