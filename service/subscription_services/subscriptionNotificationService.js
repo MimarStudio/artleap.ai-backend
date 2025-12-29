@@ -108,8 +108,8 @@ class SubscriptionNotificationService {
         `[SubscriptionNotificationService] Notification sent for ${eventType} to user ${userId}`
       );
     } catch (error) {
-      console.error(
-        "[SubscriptionNotificationService] sendSubscriptionNotification failed:",
+      console.log(
+        `[SubscriptionNotificationService] Error sending notification for ${eventType} to user ${userId}:`,
         error
       );
       throw error;
