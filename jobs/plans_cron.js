@@ -3,6 +3,7 @@ const cron = require('node-cron');
 const mongoose = require('mongoose');
 const SubscriptionService = require("../service/subscriptionService");
 const resetFreeUserCredits = require("./../controllers/freeCreditsReset");
+const { initializeFirebase } = require("./../service/firebaseService");
 const { awardCreditsToLegacyFreeUsers } = require("./../controllers/bonusAwardCreditsController");
 
 let isInitialized = false;
@@ -131,6 +132,7 @@ const runAllTasksOnce = async () => {
 };
 
 const initializeCron = async () => {
+  initializeFirebase();
   await connectToMongoDB();
   isInitialized = true;
 };

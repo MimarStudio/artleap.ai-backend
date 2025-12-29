@@ -10,7 +10,8 @@ const axios = require("axios");
 const jwt = require("jsonwebtoken");
 
 class SubscriptionController {
-  async getPlans(req, res) {
+  async getPlans(req, res)
+ {
     try {
       const plans = await SubscriptionService.getAvailablePlans();
       res.json({ success: true, data: plans });
@@ -19,7 +20,8 @@ class SubscriptionController {
     }
   }
 
-  async checkAllCancellations(req, res) {
+  async checkAllCancellations(req, res)
+ {
     try {
       await SubscriptionService.checkAndHandleSubscriptionCancellations();
       res.json({
@@ -35,7 +37,8 @@ class SubscriptionController {
     }
   }
 
-  async syncPlans(req, res) {
+  async syncPlans(req, res)
+ {
     try {
       await SubscriptionService.syncPlansWithGooglePlay();
       res.json({ success: true, message: "Plans synchronized successfully" });
@@ -277,6 +280,7 @@ class SubscriptionController {
   async verifyPurchase(paymentMethod, verificationData) {
     switch (paymentMethod) {
       case "google_play":
+        return await this.verifyGooglePurchase(verificationData);
       case "google_pay":
         return await this.verifyGooglePurchase(verificationData);
       case "stripe":
@@ -659,7 +663,7 @@ class SubscriptionController {
 
       await SendNotificationService.sendCustomNotification(
         userId,
-        userId,
+         userId,
         {
           title: immediate ? "Subscription Cancelled" : "Subscription Will Not Renew",
           body: immediate ? 

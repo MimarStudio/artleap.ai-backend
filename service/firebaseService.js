@@ -113,10 +113,6 @@ const sendPushNotification = async (deviceTokens, notificationData, contextInfo 
     };
 
     const response = await admin.messaging().sendMulticast(message);
-    console.log("✅ [Push Debug] FCM sendMulticast response summary:", {
-      successCount: response.successCount,
-      failureCount: response.failureCount,
-    });
     response.responses.forEach((resp, i) => {
       if (resp.success) {
         console.log(`✅ [Push Debug] Success → Token [${i}]`);

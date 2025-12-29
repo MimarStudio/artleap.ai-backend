@@ -1,9 +1,8 @@
 const UserSubscription = require("../../models/user_subscription");
 const User = require("../../models/user");
 const mongoose = require("mongoose");
-const NotificationService = require("./notificationService");
+const SubscriptionNotificationService = require("./subscriptionNotificationService");
 const PlanManagement = require("./plansManagement");
-const PaymentProcessing = require("./paymentProcessing");
 
 function num(v, fallback = 0) {
   const n = Number(v);
@@ -12,12 +11,9 @@ function num(v, fallback = 0) {
 
 class SubscriptionManagement {
   constructor() {
-    this.notificationService = new NotificationService();
+    this.notificationService = new SubscriptionNotificationService();
     this.planManagement = new PlanManagement();
-    this.paymentProcessing = new PaymentProcessing(this);
   }
-
-  // ================ HELPER METHODS ================
 
   async _validateUserAndPlan(userId, planId = null) {
     const user = await User.findById(userId);
@@ -70,8 +66,6 @@ class SubscriptionManagement {
       version: plan.version,
     };
   }
-
-  // ================ SUBSCRIPTION MANAGEMENT ================
 
   async getUserActiveSubscription(userId) {
     try {
@@ -184,28 +178,35 @@ class SubscriptionManagement {
       if (activeSub === null) {
         throw new Error("No active subscription found");
       }
+
+      const alreadyCancelled =
+        activeSub.cancelledAt ||
+        (activeSub.autoRenew === false &&
+          activeSub.planSnapshot?.type === "free");
+      if (alreadyCancelled) {
+        return activeSub;
+      }
+
       if (immediate) {
         const freePlan = await this.planManagement.getPlanByType("free");
 
         if (freePlan) {
-          
           activeSub.autoRenew = false;
           activeSub.cancelledAt = new Date();
           activeSub.isActive = true;
           activeSub.planId = freePlan._id;
-          activeSub.planSnapshot.name = freePlan.name,
-          activeSub.planSnapshot.type = freePlan.type,
-          activeSub.planSnapshot.price = freePlan.price,
-          activeSub.planSnapshot.dailyCredits = freePlan.dailyCredits,
-          activeSub.planSnapshot.totalCredits = freePlan.totalCredits,
-          activeSub.planSnapshot.imageGenerationCredits =
-          freePlan.imageGenerationCredits,
-          activeSub.planSnapshot.promptGenerationCredits =
-          freePlan.promptGenerationCredits,
-          activeSub.planSnapshot.features = freePlan.features,
-          activeSub.planSnapshot.version = freePlan.version,
-          activeSub.paymentMethod = null;
-
+          (activeSub.planSnapshot.name = freePlan.name),
+            (activeSub.planSnapshot.type = freePlan.type),
+            (activeSub.planSnapshot.price = freePlan.price),
+            (activeSub.planSnapshot.dailyCredits = freePlan.dailyCredits),
+            (activeSub.planSnapshot.totalCredits = freePlan.totalCredits),
+            (activeSub.planSnapshot.imageGenerationCredits =
+              freePlan.imageGenerationCredits),
+            (activeSub.planSnapshot.promptGenerationCredits =
+              freePlan.promptGenerationCredits),
+            (activeSub.planSnapshot.features = freePlan.features),
+            (activeSub.planSnapshot.version = freePlan.version),
+            (activeSub.paymentMethod = null);
 
           await activeSub.save();
           await this.updateUserData(
@@ -234,8 +235,6 @@ class SubscriptionManagement {
       throw error;
     }
   }
-
-  // ================ USER DATA MANAGEMENT ================
 
   async updateUserData(
     userId,
@@ -286,7 +285,6 @@ class SubscriptionManagement {
     user.dailyCredits = 0;
 
     if (carryOverCredits === true && user.planType !== "free") {
-      // Carry over remaining credits
       const remainingImageCredits = Math.max(
         0,
         num(user.imageGenerationCredits) - num(user.usedImageCredits)
@@ -315,7 +313,6 @@ class SubscriptionManagement {
           remainingPromptCredits + planPr;
       }
     } else {
-      // Fresh start
       user.imageGenerationCredits = planImg;
       user.promptGenerationCredits = planPr;
       user.totalCredits = planTot;
@@ -323,8 +320,6 @@ class SubscriptionManagement {
       user.usedPromptCredits = 0;
     }
   }
-
-  // ================ CLEANUP & MAINTENANCE ================
 
   async syncLocalSubscriptionStatus() {
     try {
@@ -342,20 +337,15 @@ class SubscriptionManagement {
 
           if (!user) continue;
 
-          // Fix null endDate
           if (!subscription.endDate) {
             subscription.endDate = new Date();
             await subscription.save();
           }
-
-          // Check if subscription has expired
           if (subscription.endDate < now && subscription.isActive) {
             await this._handleExpiredSubscription(subscription);
             updated++;
             continue;
           }
-
-          // Sync user subscription status
           if (user.isSubscribed !== subscription.isActive) {
             user.isSubscribed = subscription.isActive;
             user.subscriptionStatus = subscription.isActive
@@ -463,7 +453,6 @@ class SubscriptionManagement {
       let deleted = 0;
       let fixed = 0;
 
-      // Find and delete orphaned subscriptions
       const orphanedSubscriptions = await UserSubscription.aggregate([
         {
           $lookup: {
@@ -489,7 +478,6 @@ class SubscriptionManagement {
         deleted += idsToDelete.length;
       }
 
-      // Fix duplicate active subscriptions
       const duplicateSubscriptions = await UserSubscription.aggregate([
         {
           $match: { isActive: true },
@@ -563,7 +551,6 @@ class SubscriptionManagement {
         const orphanedIds = [];
         const userSubscriptionsMap = new Map();
 
-        // Check each subscription
         for (const sub of subscriptionsBatch) {
           try {
             const userExists = await User.exists({ _id: sub.userId }).maxTime(
@@ -585,14 +572,11 @@ class SubscriptionManagement {
             );
           }
         }
-
-        // Delete orphaned subscriptions
         if (orphanedIds.length > 0) {
           await UserSubscription.deleteMany({ _id: { $in: orphanedIds } });
           deleted += orphanedIds.length;
         }
 
-        // Fix duplicate active subscriptions
         for (const [userId, subscriptions] of userSubscriptionsMap) {
           if (subscriptions.length > 1) {
             const activeSubscriptions = subscriptions.filter(
@@ -620,8 +604,6 @@ class SubscriptionManagement {
             }
           }
         }
-
-        // Small delay between batches
         if (batchNum < totalBatches - 1) {
           await new Promise((resolve) => setTimeout(resolve, 500));
         }
@@ -633,8 +615,6 @@ class SubscriptionManagement {
       return { deleted: 0, fixed: 0 };
     }
   }
-
-  // ================ SUBSCRIPTION PROCESSING ================
 
   async processExpiredSubscriptions() {
     try {
@@ -667,11 +647,7 @@ class SubscriptionManagement {
           continue;
         }
 
-        const paymentSuccess = await this.paymentProcessing.processPayment(
-          sub.userId._id,
-          sub.paymentMethod,
-          sub.planSnapshot?.price || 0
-        );
+        const paymentSuccess = true;
 
         if (paymentSuccess) {
           await this._renewSubscription(sub);
@@ -815,8 +791,6 @@ class SubscriptionManagement {
     }
   }
 
-  // ================ TRIAL MANAGEMENT ================
-
   async startFreeTrial(userId, paymentMethod) {
     try {
       const trialPlan = await this.planManagement.getPlanByType("trial");
@@ -851,8 +825,6 @@ class SubscriptionManagement {
       throw error;
     }
   }
-
-  // ================ DIAGNOSTICS & MONITORING ================
 
   async verifyUserSubscriptionStatus(userId) {
     try {
@@ -932,7 +904,6 @@ class SubscriptionManagement {
     try {
       const issues = [];
 
-      // Check orphaned subscriptions
       const orphanedSubs = await UserSubscription.aggregate([
         {
           $lookup: {
@@ -953,7 +924,6 @@ class SubscriptionManagement {
         });
       }
 
-      // Check expired but active subscriptions
       const expiredActiveSubs = await UserSubscription.countDocuments({
         isActive: true,
         endDate: { $lte: new Date() },
@@ -967,7 +937,6 @@ class SubscriptionManagement {
         });
       }
 
-      // Check null end dates
       const nullEndDateSubs = await UserSubscription.countDocuments({
         endDate: null,
       });
@@ -980,7 +949,6 @@ class SubscriptionManagement {
         });
       }
 
-      // Check status mismatches
       const mismatchedUsers = await User.aggregate([
         {
           $lookup: {
@@ -1036,8 +1004,6 @@ class SubscriptionManagement {
     }
   }
 
-  // ================ PREVENTIVE MEASURES ================
-
   async preventiveCleanupMeasures() {
     try {
       const invalidUserRefs = await UserSubscription.find({
@@ -1065,8 +1031,6 @@ class SubscriptionManagement {
       );
     }
   }
-
-  // ================ ALIAS METHODS (for backward compatibility) ================
 
   async createSubscription(userId, planId, paymentMethod, isTrial = false) {
     return this.createOrUpdateSubscription(

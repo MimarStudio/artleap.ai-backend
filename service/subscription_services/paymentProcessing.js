@@ -1,25 +1,25 @@
 const UserSubscription = require("../../models/user_subscription");
 const PaymentRecord = require("../../models/recordPayment_model");
-const NotificationService = require("./notificationService");
-const SubscriptionManagement = require("./subscriptionsManagement");
-const SubscriptionPlan = require("../../models/subscriptionPlan_model");
+const SubscriptionNotificationService = require("./subscriptionNotificationService");
+// const SubscriptionManagement = require("./subscriptionsManagement");
+// const SubscriptionPlan = require("../../models/subscriptionPlan_model");
 const User = require('./../../models/user');
-const mongoose = require('mongoose');
+// const mongoose = require('mongoose');
 
 class PaymentProcessing {
   constructor(subscriptionManagement) {
-    this.notificationService = new NotificationService();
+    this.notificationService = new SubscriptionNotificationService();
     this.subscriptionManagement = subscriptionManagement;
   }
 
-  async processPayment(userId, paymentMethod, amount) {
-    try {
-      return true;
-    } catch (error) {
-      console.error("[PaymentProcessing] processPayment failed:", error);
-      throw error;
-    }
-  }
+  // async processPayment() {
+  //   try {
+  //     return true;
+  //   } catch (error) {
+  //     console.error("[PaymentProcessing] processPayment failed:", error);
+  //     throw error;
+  //   }
+  // }
 
   async renewSubscription(subscriptionId) {
     try {
