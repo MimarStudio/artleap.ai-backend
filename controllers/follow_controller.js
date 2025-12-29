@@ -58,7 +58,7 @@ const toggleFollowUser = async (req, res) => {
         if (deviceTokens && deviceTokens.length > 0) {
           await sendPushNotification(deviceTokens, notifData, contextInfo);
         } else {
-          console.warn("⚠️ [Push Debug] No tokens found for user:", followId);
+          
         }
 
         await saveNotification({

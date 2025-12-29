@@ -23,7 +23,7 @@ const SendNotificationService = {
       if (deviceTokens.length > 0) {
         await sendPushNotification(deviceTokens, notifData, contextInfo);
       } else {
-        console.warn("⚠️ [Push Debug] No tokens found for user:", receiverUserId);
+      
       }
 
       await saveNotification({
