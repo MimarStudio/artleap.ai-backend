@@ -146,7 +146,7 @@ const sendIndividualNotifications = async (tokens, notificationData) => {
       await admin.messaging().send(message);
       successCount++;
     } catch (error) {
-      console.error(`Failed to send to token ${token}:`, error);
+      // console.error(`Failed to send to token ${token}:`, error);
       failureCount++;
     }
   }
