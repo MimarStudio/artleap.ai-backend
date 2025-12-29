@@ -11,10 +11,6 @@ class SubscriptionNotificationService {
           : userId,
       });
       if (!user) {
-        console.error(
-          "[SubscriptionNotificationService] User not found:",
-          userId
-        );
         return;
       }
 
@@ -103,15 +99,7 @@ class SubscriptionNotificationService {
         userId,
         notificationConfig
       );
-
-      console.log(
-        `[SubscriptionNotificationService] Notification sent for ${eventType} to user ${userId}`
-      );
     } catch (error) {
-      console.log(
-        `[SubscriptionNotificationService] Error sending notification for ${eventType} to user ${userId}:`,
-        error
-      );
       throw error;
     }
   }
