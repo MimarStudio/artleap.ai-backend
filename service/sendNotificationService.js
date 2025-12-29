@@ -3,16 +3,13 @@ const { saveNotification, sendPushNotification, getDeviceTokens } = require("./f
 const SendNotificationService = {
   sendCustomNotification: async (receiverUserId, senderUserId, notificationConfig) => {
     try {
-      if (String(receiverUserId) === String(senderUserId)) {
-        return;
-      }
 
       const deviceTokens = await getDeviceTokens(receiverUserId);
 
       const notifData = {
         title: notificationConfig.title,
         body: notificationConfig.body,
-        data: notificationConfig.data || {},
+        data:  stringifyData(notificationConfig.data),
       };
 
       const contextInfo = {
@@ -26,7 +23,7 @@ const SendNotificationService = {
       if (deviceTokens.length > 0) {
         await sendPushNotification(deviceTokens, notifData, contextInfo);
       } else {
-        console.warn("⚠️ [Push Debug] No tokens found for user:", receiverUserId);
+      
       }
 
       await saveNotification({
@@ -43,5 +40,19 @@ const SendNotificationService = {
     }
   }
 };
+
+function stringifyData(data = {}) {
+  const result = {};
+  for (const [key, value] of Object.entries(data)) {
+    result[key] =
+      value === undefined || value === null
+        ? ""
+        : typeof value === "string"
+        ? value
+        : JSON.stringify(value);
+  }
+  return result;
+}
+
 
 module.exports = SendNotificationService;

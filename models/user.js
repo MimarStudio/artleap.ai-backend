@@ -49,7 +49,8 @@ const UserSchema = new mongoose.Schema({
     dailyCount: { type: Number, default: 0 },
     totalCount: { type: Number, default: 0 },
     lastRewardDate: { type: Date, default: null }
-  }
+  },
+  bonusCredits: { type: Boolean, default:false}
 });
 
 module.exports = mongoose.model("User", UserSchema);

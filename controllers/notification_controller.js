@@ -1,12 +1,12 @@
 const mongoose = require("mongoose");
 const Notification = require("./../models/notification_model");
 const User = require("./../models/user");
-const admin = require("firebase-admin");
-const {
-  saveNotification,
-  getDeviceTokens,
-  sendPushNotification,
-} = require("./../service/firebaseService");
+// const admin = require("firebase-admin");
+// const {
+//   saveNotification,
+//   getDeviceTokens,
+//   sendPushNotification,
+// } = require("./../service/firebaseService");
 
 const isValidObjectId = (id) => {
   return mongoose.Types.ObjectId.isValid(id);
@@ -220,93 +220,106 @@ const deleteNotification = async (req, res) => {
   }
 };
 
-const createNotification = async (req, res) => {
-  try {
-    const { userId: rawUserId, type = "general", title, body, data } = req.body;
-    const userId = rawUserId || req.user?._id || null;
+// const createNotification = async (req, res) => {
+//   try {
+//     const { userId: rawUserId, type = "general", title, body, data } = req.body;
+//     const userId = rawUserId || req.user?._id || null;
 
-    if (!title || !body) {
-      return res.status(400).json({
-        success: false,
-        message: "Title and body are required",
-      });
-    }
+//     // Validate inputs
+//     if (!title || !body) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Title and body are required",
+//       });
+//     }
 
-    if (!["general", "user"].includes(type)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid notification type. Must be 'general' or 'user'",
-      });
-    }
+//     if (!["general", "user"].includes(type)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid notification type. Must be 'general' or 'user'",
+//       });
+//     }
 
-    if (type === "general" && userId) {
-      return res.status(400).json({
-        success: false,
-        message: "General notifications cannot have a userId",
-      });
-    }
+//     if (type === "general" && userId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "General notifications cannot have a userId",
+//       });
+//     }
 
-    if (type === "user" && !userId) {
-      return res.status(400).json({
-        success: false,
-        message: "User-specific notifications require a userId",
-      });
-    }
+//     if (type === "user" && !userId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "User-specific notifications require a userId",
+//       });
+//     }
 
-    if (type === "general") {
-      const existing = await Notification.findOne({
-        type: "general",
-        title: title.trim(),
-        body: body.trim(),
-        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-      });
+//     // Prevent duplicate general notifications
+//     if (type === "general") {
+//       const existing = await Notification.findOne({
+//         type: "general",
+//         title: title.trim(),
+//         body: body.trim(),
+//         createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+//       });
 
-      if (existing) {
-        return res.status(200).json({
-          success: true,
-          data: existing,
-          message: "Similar general notification already exists",
-        });
-      }
-    }
+//       if (existing) {
+//         return res.status(200).json({
+//           success: true,
+//           data: existing,
+//           message: "Similar general notification already exists",
+//         });
+//       }
+//     }
 
-    const notification = new Notification({
-      title,
-      body,
-      data: data || {},
-      type,
-      userId: type === "user" ? userId : null,
-    });
+//     // Save notification in DB
+//     const notification = new Notification({
+//       title: title.trim(),
+//       body: body.trim(),
+//       data: data || {},
+//       type,
+//       userId: type === "user" ? userId : null,
+//     });
 
-    await notification.save();
+//     await notification.save();
 
-    if (type === "general") {
-      await admin.messaging().send({
-        notification: { title, body },
-        data: data || {},
-        topic: "all",
-      });
-    } else {
-      const tokens = await getDeviceTokens(userId);
+//     // 🔔 Push notification logic
+//     try {
+//       if (type === "general") {
+//         // Push to all users subscribed to topic "all"
+//         await admin.messaging().send({
+//           notification: { title, body },
+//           data: data || {},
+//           topic: "all",
+//         });
+//       } else {
+//         // Push to specific user(s)
+//         const tokens = await getDeviceTokens(userId);
 
-      if (tokens.length > 0) {
-        await sendPushNotification(tokens, { title, body, data });
-      }
-    }
+//         if (tokens.length > 0) {
+//           await sendPushNotification(tokens, { title, body, data });
+//         } else {
+//           console.warn(`⚠️ No device tokens found for user ${userId}`);
+//         }
+//       }
+//     } catch (pushError) {
+//       console.error("❌ Error sending push notification:", pushError.message || pushError);
+//     }
 
-    res.status(201).json({
-      success: true,
-      data: notification,
-    });
-  } catch (error) {
-    console.error("Error creating notification:", error);
-    const status = error.message.includes("Duplicate") ? 409 : 500;
-    res.status(status).json({
-      success: false,
-      message: error.message || "Internal server error while creating notification",
-    });
-  }
-};
+//     res.status(201).json({
+//       success: true,
+//       data: notification,
+//     });
+//   } catch (error) {
+//     console.error("Error creating notification:", error);
+//     const status = error.message.includes("Duplicate") ? 409 : 500;
+//     res.status(status).json({
+//       success: false,
+//       message: error.message || "Internal server error while creating notification",
+//     });
+//   }
+// };
+
 
 const markAllAsRead = async (req, res) => {
   try {
@@ -372,5 +385,5 @@ module.exports = {
   markAsRead,
   markAllAsRead,
   deleteNotification,
-  createNotification,
+  // createNotification,
 };

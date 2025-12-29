@@ -3,7 +3,7 @@ const FcmToken = require("./../models/fcm_token_model");
 const registerToken = async (req, res) => {
   try {
     const { userId, fcmToken } = req.body;
-
+   
     if (!userId || !fcmToken) {
       return res.status(400).json({ message: "userId and fcmToken are required" });
     }
@@ -16,7 +16,6 @@ const registerToken = async (req, res) => {
         userTokens.updatedAt = Date.now();
         await userTokens.save();
       }
-      console.log('token register ')
     } else {
       userTokens = new FcmToken({ userId, tokens: [fcmToken] });
       await userTokens.save();

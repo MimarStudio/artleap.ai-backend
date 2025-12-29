@@ -2,7 +2,7 @@ const GooglePlanSyncService = require("./google/googlePlanSync");
 const PlanManagement = require("./subscription_services/plansManagement");
 const SubscriptionManagement = require("./subscription_services/subscriptionsManagement");
 const PaymentProcessing = require("./subscription_services/paymentProcessing");
-const NotificationService = require("./subscription_services/notificationService");
+const SubscriptionNotificationService = require("./subscription_services/subscriptionNotificationService");
 const CreditManagement = require("./subscription_services/creditsManagement");
 const ApplePlanSync = require('./apple/applePlanSync');
 const GoogleCancellationHandler = require("./google/googleCancellationHandler");
@@ -15,7 +15,7 @@ class SubscriptionService {
     this.planManagement = new PlanManagement();
     this.subscriptionManagement = new SubscriptionManagement();
     this.paymentProcessing = new PaymentProcessing();
-    this.notificationService = new NotificationService();
+    this.notificationService = new SubscriptionNotificationService();
     this.creditManagement = new CreditManagement();
     this.googleCancellationHandler = new GoogleCancellationHandler();
     this.appleCancellationHandler = new AppleCancellationHandler();
@@ -251,15 +251,15 @@ class SubscriptionService {
     }
   }
 
-  async processPayment(userId, paymentMethod, amount) {
-    try {
-      const result = await this.paymentProcessing.processPayment(userId, paymentMethod, amount);
-      return result;
-    } catch (error) {
-      console.error("[SubscriptionService] processPayment failed:", error);
-      throw error;
-    }
-  }
+  // async processPayment(userId, paymentMethod, amount) {
+  //   try {
+  //     const result = await this.paymentProcessing.processPayment(userId, paymentMethod, amount);
+  //     return result;
+  //   } catch (error) {
+  //     console.error("[SubscriptionService] processPayment failed:", error);
+  //     throw error;
+  //   }
+  // }
 
   async sendSubscriptionNotification(userId, eventType, subscription) {
     try {
