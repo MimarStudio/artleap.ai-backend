@@ -1,15 +1,22 @@
 const express = require("express");
 const multer = require("multer");
-
 const { videoGenerationController } = require("../controllers/videoController");
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, "uploads/"),
-    filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
-})
-const upload = multer({ storage });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB file limit
+  fileFilter: (req, file, cb) => {
+    const ok = ["image/png", "image/jpeg"].includes(file.mimetype);
+    cb(ok ? null : new Error("Only .png and .jpg files are allowed!"), ok);
+  },
+});
+
 const videoRouter = express.Router();
 
-videoRouter.post("/text-to-video", upload.none(), videoGenerationController);
+videoRouter.post(
+  "/text-to-video",
+  upload.array("images", 3),
+  videoGenerationController
+);
 
 module.exports = { videoRouter };
