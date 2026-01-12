@@ -67,10 +67,6 @@ class SubscriptionNotificationService {
           action = "subscription_expired";
           break;
         default:
-          console.debug(
-            "[SubscriptionNotificationService] Unknown event type:",
-            eventType
-          );
           return;
       }
 
