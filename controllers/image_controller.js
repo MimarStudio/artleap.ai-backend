@@ -5,7 +5,7 @@ const getAllImages = async (req, res) => {
     let page = parseInt(req.query.page) || 1;
     if (page < 1) page = 1;
 
-    const limit = 100;
+    const limit = 40;
     const filter = { $or: [{ privacy: "public" }, { privacy: { $exists: false } }] };
 
     const totalImages = await Image.countDocuments(filter);
@@ -30,4 +30,21 @@ const getAllImages = async (req, res) => {
   }
 };
 
-module.exports = { getAllImages };
+const getAllImagesByAmdin = async (req, res) => {
+  try {
+    const filter = { $or: [{ privacy: "public" }, { privacy: { $exists: false } }] };
+    const totalImages = await Image.countDocuments(filter);
+    const images = await Image.find(filter)
+      .sort({ createdAt: -1 })
+    res.json({
+      success: true,
+      message: "Images fetched successfully",
+      totalImages: totalImages,
+      images: images
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+module.exports = { getAllImages, getAllImagesByAmdin };
