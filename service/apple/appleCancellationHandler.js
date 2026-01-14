@@ -54,7 +54,6 @@ class AppleCancellationHandler {
           iat: now,
           exp: now + 20 * 60,
           aud: "appstoreconnect-v1",
-          bid: this.bundleId,
         },
         this.privateKey,
         {
@@ -62,6 +61,7 @@ class AppleCancellationHandler {
           header: { kid: this.keyId, typ: "JWT" },
         }
       );
+
     } catch (error) {
       throw new Error("Failed to generate App Store Connect API token");
     }
@@ -72,6 +72,15 @@ class AppleCancellationHandler {
       if (!this.isValidTransactionId(originalTransactionId)) {
         return { status: "INVALID_ID" };
       }
+      const code = error.response?.data?.errorCode;
+
+      if (code === 5000001) {
+        return {
+          status: "NOT_FOUND",
+          errorCode: 5000001,
+          errorMessage: "Apple internal error",
+        };
+      }
 
       const token = await this.generateToken();
       const headers = {
@@ -81,8 +90,21 @@ class AppleCancellationHandler {
 
       const url = `https://api.storekit.itunes.apple.com/inApps/v1/subscriptions/${originalTransactionId}`;
 
-      const response = await axios.get(url, { headers });
-      return response.data;
+      const prodUrl = `https://api.storekit.itunes.apple.com/inApps/v1/subscriptions/${originalTransactionId}`;
+      const sandboxUrl = `https://api.storekit-sandbox.itunes.apple.com/inApps/v1/subscriptions/${originalTransactionId}`;
+
+      try {
+        return (await axios.get(prodUrl, { headers })).data;
+      } catch (e) {
+        if (
+          e.response?.status === 404 ||
+          e.response?.data?.errorCode === 5000001
+        ) {
+          return (await axios.get(sandboxUrl, { headers })).data;
+        }
+        throw e;
+      }
+
     } catch (error) {
       if (error.response?.status === 404) {
         return {
@@ -145,12 +167,12 @@ class AppleCancellationHandler {
           continue;
         }
 
-        const transactionId =
-          paymentRecord.originalTransactionId || paymentRecord.transactionId;
-        if (!transactionId || !transactionId.trim()) {
+        const transactionId = paymentRecord.originalTransactionId;
+        if (!transactionId) {
           results.skipped++;
           continue;
         }
+
 
         try {
           const appStoreStatus = await this.getSubscriptionStatusFromAppStore(
@@ -173,7 +195,7 @@ class AppleCancellationHandler {
           }
 
           results.processed++;
-          await new Promise((r) => setTimeout(r, 100));
+          await new Promise((r) => setTimeout(r, 300));
         } catch (error) {
           if (
             error.message.includes("Invalid App Store Connect API credentials")
@@ -425,7 +447,7 @@ class AppleCancellationHandler {
             }
           );
         }
-        
+
         // Update user subscription status
         await this.subscriptionService.cancelSubscription(
           userId,
@@ -519,7 +541,7 @@ class AppleCancellationHandler {
       if (userSubscriptionDoc?.planId) {
         planDoc =
           typeof userSubscriptionDoc.planId === "object" &&
-          userSubscriptionDoc.planId._id
+            userSubscriptionDoc.planId._id
             ? userSubscriptionDoc.planId
             : await SubscriptionPlan.findById(userSubscriptionDoc.planId);
       }
