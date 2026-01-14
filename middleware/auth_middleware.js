@@ -10,6 +10,13 @@ const authenticateUser = async (req, res, next) => {
       return next();
     }
     
+    if (
+      req.method === 'GET' &&
+      req.originalUrl.startsWith('/api/user-history')
+    ) {
+      return next();
+    }
+    
     const authHeader = req.headers.authorization;
 
     // 🔐 1. Try Firebase token if provided
