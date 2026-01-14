@@ -13,6 +13,18 @@ const ImageSchema = new mongoose.Schema({
   commentCount: { type: Number, default: 0 }
 });
 
+ImageSchema.virtual("likes", {
+  ref: "Like",
+  localField: "_id",
+  foreignField: "image"
+});
+
+ImageSchema.virtual("comments", {
+  ref: "Comment",
+  localField: "_id",
+  foreignField: "image"
+});
+
 ImageSchema.virtual('savedCount', {
   ref: 'SavedImage',
   localField: '_id',
@@ -20,6 +32,7 @@ ImageSchema.virtual('savedCount', {
   count: true
 });
 
-ImageSchema.set('toJSON', { virtuals: true });
+ImageSchema.set("toJSON", { virtuals: true });
+ImageSchema.set("toObject", { virtuals: true });
 
 module.exports = mongoose.model("Image", ImageSchema);
