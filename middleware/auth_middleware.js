@@ -3,6 +3,13 @@ const User = require("../models/user");
 
 const authenticateUser = async (req, res, next) => {
   try {
+     if (
+      req.method === 'GET' &&
+      req.originalUrl.startsWith('/api/feedback')
+    ) {
+      return next();
+    }
+    
     const authHeader = req.headers.authorization;
 
     // 🔐 1. Try Firebase token if provided

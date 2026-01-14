@@ -25,8 +25,10 @@ const { promptRouter } = require("./routers/prompt_router");
 const userPrefernces = require("./routers/userPreferencesRoutes");
 const rewardedAds = require('./routers/rewarded_Ad_routes');
 const clickCounterRoutes = require('./routers/click_counter_routes');
+const feedback_routes = require("./routers/feedbackRoutes");
 const os = require("os");
 const path = require("path");
+const feedback_model = require("./models/feedback_model");
 
 initializeFirebase();
 const app = express();
@@ -56,6 +58,7 @@ app.use("/api", savedImageRoutes);
 app.use("/api", userPrefernces);
 app.use("/api/rewarded_ads",rewardedAds);
 app.use('/api', clickCounterRoutes);
+app.use("/api/feedback", feedback_routes);
 
 mongoose
   .connect("mongodb://127.0.0.1:27017/user-auth")
