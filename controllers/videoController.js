@@ -82,8 +82,13 @@ const videoGenerationController = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      video_url: `/generated/${outputFile}`,
-      model_used: modelId,
+      message: "Video generated successfully.",
+      output: {
+        video_url: `/generated/${outputFile}`,
+        model_used: modelId,
+        duration: duration,
+        aspect_ratio: ratio,
+      }
     });
   } catch (error) {
     console.error("Video generation error:", error);
