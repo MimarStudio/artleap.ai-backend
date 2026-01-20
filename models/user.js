@@ -50,7 +50,16 @@ const UserSchema = new mongoose.Schema({
     totalCount: { type: Number, default: 0 },
     lastRewardDate: { type: Date, default: null }
   },
-  bonusCredits: { type: Boolean, default:false}
+  bonusCredits: { type: Boolean, default: false },
+
+  videos: [{
+    url: { type: String, required: true },
+    generatedAt: { type: Date, default: Date.now },
+    model: { type: String },
+    prompt: { type: String },
+    aspectRatio: { type: String },
+    duration: { type: Number }
+  }]
 });
 
 module.exports = mongoose.model("User", UserSchema);

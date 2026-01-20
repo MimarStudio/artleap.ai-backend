@@ -1,5 +1,7 @@
 const express = require("express");
 const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
 const { videoGenerationController } = require("../controllers/videoController");
 
 const upload = multer({
@@ -19,4 +21,30 @@ videoRouter.post(
   videoGenerationController
 );
 
+videoRouter.get("/download-video/:filename", (req, res) => {
+  try {
+    const { filename } = req.params;
+
+    const videoPath = path.join(
+      process.cwd(),
+      "public",
+      "generated",
+      filename
+    );
+
+    if (!fs.existsSync(videoPath)) {
+      console.log("Video not found:", videoPath);
+      return res.status(404).json({ message: "Video not found" });
+    }
+
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+
+    res.sendFile(videoPath);
+  } catch (error) {
+    console.error("Error downloading video:", error);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+})
 module.exports = { videoRouter };

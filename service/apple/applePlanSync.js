@@ -59,17 +59,23 @@ class ApplePlanSyncService {
   }
 
   async generateToken() {
-    try {
-      const now = Math.floor(Date.now() / 1000);
-      return jwt.sign(
-        { iss: this.issuerId, iat: now, exp: now + 20 * 60, aud: "appstoreconnect-v1" },
-        this.privateKey,
-        { algorithm: "ES256", header: { kid: this.keyId } }
-      );
-    } catch {
-      throw new Error("Failed to generate App Store Connect API token");
-    }
+    const now = Math.floor(Date.now() / 1000) - 30; // backdate for clock skew
+
+    return jwt.sign(
+      {
+        iss: this.issuerId,
+        iat: now,
+        exp: now + 15 * 60,
+        aud: "appstoreconnect-v1",
+      },
+      this.privateKey,
+      {
+        algorithm: "ES256",
+        keyid: this.keyId,
+      }
+    );
   }
+
 
   async checkDatabaseConnection() {
     try {
@@ -106,7 +112,7 @@ class ApplePlanSyncService {
             localizationName = chosen.name || localizationName;
             localizationDesc = chosen.description || "";
           }
-        } catch {}
+        } catch { }
         let price = 0;
         try {
           const pricesUrl = `${this.baseURL}/subscriptions/${subId}/prices?include=subscriptionPricePoint,territory&filter[territory]=USA`;
@@ -114,7 +120,7 @@ class ApplePlanSyncService {
           const included = data?.included || [];
           const pricePoint = included.find((i) => i.type === "subscriptionPricePoints");
           price = num(pricePoint?.attributes?.customerPrice, 0);
-        } catch {}
+        } catch { }
         products.push({
           productId,
           name: localizationName || attributes.name || productId,
